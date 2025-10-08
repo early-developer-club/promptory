@@ -2,7 +2,7 @@
 
 개발자를 위한 AI 대화 아카이빙 및 자산화 서비스입니다. Gemini, ChatGPT 등 생성형 AI와의 모든 상호작용을 체계적인 지식 자산으로 전환하여, 개발 생산성과 문제 해결 능력을 극대화하도록 돕습니다.
 
-- **VIBECODING 소요 시간:** 약 1시간
+- **VIBECODING 소요 시간:** 1h 39m 37s
 - **기술 스택:**
   - **Backend:** Python, FastAPI, SQLAlchemy, OAuth2
   - **Frontend:** Next.js (예정)
