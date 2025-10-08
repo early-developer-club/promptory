@@ -5,3 +5,8 @@ sqlalchemy
 python-jose[cryptography]
 passlib[bcrypt]
 python-dotenv
+
+# For Google OAuth & JWT
+python-multipart
+google-auth-oauthlib
+requests
