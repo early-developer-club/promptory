@@ -1,36 +1,43 @@
 
 from fastapi import FastAPI, Depends, HTTPException, status
-from pydantic import BaseModel, Field
-from typing import List, Literal
-import datetime
+from sqlalchemy.orm import Session
+from typing import List
 
-# --- Pydantic Models (Data Transfer Objects) ---
-# Based on the detailed specification
+# Import database setup, models, and schemas
+import models
+import schemas
+import database
 
-class ConversationCreate(BaseModel):
-    source: Literal["CHAT_GPT", "GEMINI"]
-    prompt: str
-    response: str
-    conversationTimestamp: datetime.datetime
+# Create all database tables
+# This is a simple way to ensure tables are created on startup.
+# For production, you would use a migration tool like Alembic.
+models.Base.metadata.create_all(bind=database.engine)
 
-class ConversationResponse(BaseModel):
-    success: bool
-    conversationId: str
-
-# --- FastAPI App Initialization ---
 app = FastAPI(
     title="Promptory API",
     description="API for backing up and managing AI conversations.",
     version="0.1.0"
 )
 
+# --- Database Dependency ---
+def get_db():
+    db = database.SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 # --- Authentication (Placeholder) ---
 # TODO: Implement real JWT-based authentication
-def get_current_user():
-    # For now, this is a placeholder. In a real app, this would
-    # decode a JWT token from the Authorization header.
-    print("Dependency: get_current_user called. Returning a dummy user.")
-    return {"userId": "dummy_user_id"}
+def get_current_user(db: Session = Depends(get_db)):
+    # For now, fetch or create a dummy user from the DB for demonstration.
+    dummy_user = db.query(models.User).filter(models.User.email == "user@example.com").first()
+    if not dummy_user:
+        dummy_user = models.User(email="user@example.com", provider="dummy")
+        db.add(dummy_user)
+        db.commit()
+        db.refresh(dummy_user)
+    return dummy_user
 
 # --- API Endpoints ---
 
@@ -38,35 +45,31 @@ def get_current_user():
 def read_root():
     return {"message": "Welcome to the Promptory API!"}
 
-@app.post("/api/v1/conversations", response_model=ConversationResponse, status_code=status.HTTP_201_CREATED)
-async def create_conversation(
-    conversation: ConversationCreate,
-    current_user: dict = Depends(get_current_user)
+@app.post("/api/v1/conversations", response_model=schemas.Conversation, status_code=status.HTTP_201_CREATED)
+def create_conversation(
+    conversation: schemas.ConversationCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
 ):
     """
     API-001: Receives conversation data from the Chrome extension and saves it.
     """
-    print(f"Received conversation from user: {current_user['userId']}")
-    print(f"Source: {conversation.source}, Timestamp: {conversation.conversationTimestamp}")
-
-    # TODO: [Database] Save the conversation to the database, linking it to the userId.
-    # new_conversation = db.Conversations(
-    #     userId=current_user['userId'],
-    *#     **conversation.dict()
-    # )
-    # db.session.add(new_conversation)
-    # db.session.commit()
+    db_conversation = models.Conversation(
+        **conversation.dict(),
+        owner_id=current_user.id
+    )
+    db.add(db_conversation)
+    db.commit()
+    db.refresh(db_conversation)
     
-    # For now, we'll just simulate a successful save.
-    new_conversation_id = "simulated-uuid-" + str(datetime.datetime.utcnow().timestamp())
-    print(f"Simulating save. New conversation ID: {new_conversation_id}")
+    print(f"Conversation {db_conversation.id} from user {current_user.email} saved to DB.")
 
     # TODO: [Async Job] Trigger the summarization and auto-tagging job (JOB-001).
-    # background_tasks.add_task(process_conversation_summary, new_conversation_id)
-    print(f"TODO: Trigger async job JOB-001 for conversationId: {new_conversation_id}")
+    print(f"TODO: Trigger async job JOB-001 for conversationId: {db_conversation.id}")
 
-    return {"success": True, "conversationId": new_conversation_id}
+    return db_conversation
 
 # To run this app:
-# 1. Install dependencies: pip install -r requirements.txt
-# 2. Run the server: uvicorn main:app --reload
+# 1. Create a .env file with DATABASE_URL (see .env.example)
+# 2. Install dependencies: pip install -r requirements.txt
+# 3. Run the server: uvicorn main:app --reload
