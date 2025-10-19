@@ -6,7 +6,9 @@ os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.responses import RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List
 from jose import JWTError, jwt
 
@@ -27,6 +29,15 @@ app = FastAPI(
     version="0.1.0"
 )
 
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
+
 # --- Database Dependency ---
 def get_db():
     db = database.SessionLocal()
@@ -35,9 +46,12 @@ def get_db():
     finally:
         db.close()
 
+from fastapi.security import OAuth2PasswordBearer
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
 # --- Real Authentication Dependency ---
-async def get_current_user(request: Request, db: Session = Depends(get_db)):
-    token = request.cookies.get("access_token")
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -80,10 +94,10 @@ def auth_google():
 @app.get("/auth/google/callback")
 def auth_google_callback(request: Request, db: Session = Depends(get_db)):
     """Handle the callback from Google after successful login."""
-    # CSRF protection
-    state = request.cookies.get("state")
-    if not state or state != request.query_params.get('state'):
-        raise HTTPException(status_code=400, detail="Invalid state parameter")
+    # CSRF protection (Temporarily disabled for local development)
+    # state = request.cookies.get("state")
+    # if not state or state != request.query_params.get('state'):
+    #     raise HTTPException(status_code=400, detail="Invalid state parameter")
 
     # Exchange the authorization code for an access token
     auth.flow.fetch_token(authorization_response=str(request.url))
@@ -102,15 +116,8 @@ def auth_google_callback(request: Request, db: Session = Depends(get_db)):
     # Create a JWT for our service
     access_token = auth.create_access_token(data={"sub": str(user.id)})
 
-    # Set the JWT in an HTTPOnly cookie and redirect
-    response = RedirectResponse(url="http://localhost:3000/dashboard") # Redirect to frontend
-    response.set_cookie(
-        key="access_token", 
-        value=access_token, 
-        httponly=True, # Prevents JS access
-        max_age=auth.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        samesite='lax'
-    )
+    # Redirect to the frontend callback URL with the token in the hash
+    response = RedirectResponse(url=f"http://localhost:3000/auth/callback#access_token={access_token}")
     return response
 
 # --- User Endpoints ---
@@ -121,6 +128,71 @@ async def read_users_me(current_user: models.User = Depends(get_current_user)):
     return current_user
 
 # --- Conversation Endpoints (Now Protected) ---
+
+@app.get("/api/v1/conversations", response_model=List[schemas.Conversation])
+def read_conversations(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Retrieve all conversations for the current user."""
+    return db.query(models.Conversation).filter(models.Conversation.owner_id == current_user.id).order_by(models.Conversation.conversation_timestamp.desc()).all()
+
+@app.get("/api/v1/conversations/{conversation_id}", response_model=schemas.Conversation)
+def read_conversation(
+    conversation_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Retrieve a single conversation by its ID."""
+    conversation = db.query(models.Conversation).filter(
+        models.Conversation.id == conversation_id,
+        models.Conversation.owner_id == current_user.id
+    ).first()
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return conversation
+
+@app.delete("/api/v1/conversations/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_conversation(
+    conversation_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Delete a conversation by its ID."""
+    conversation = db.query(models.Conversation).filter(
+        models.Conversation.id == conversation_id,
+        models.Conversation.owner_id == current_user.id
+    ).first()
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    db.delete(conversation)
+    db.commit()
+    return
+
+@app.get("/api/v1/statistics/summary")
+def get_statistics_summary(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Get summary statistics for the current user."""
+    total_conversations = db.query(func.count(models.Conversation.id)).filter(models.Conversation.owner_id == current_user.id).scalar()
+
+    by_source_query = db.query(
+        models.Conversation.source, func.count(models.Conversation.id)
+    ).filter(
+        models.Conversation.owner_id == current_user.id
+    ).group_by(
+        models.Conversation.source
+    ).all()
+
+    by_source = {source: count for source, count in by_source_query}
+
+    return {
+        "total_conversations": total_conversations or 0,
+        "by_source": by_source
+    }
+
 
 @app.post("/api/v1/conversations", response_model=schemas.Conversation, status_code=status.HTTP_201_CREATED)
 def create_conversation(

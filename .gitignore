@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual Environments
+venv/
+.venv/
+
+# Databases
+*.db
+*.sqlite3
+
+# Environment variables
+.env
+.env.*
+
+# Node.js
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# OS-specific
+.DS_Store
+
+# IDE-specific
+.vscode/
+.idea/
