@@ -1,117 +1,183 @@
+(function() {
+    'use strict';
 
-console.log("Promptory content script loaded.");
+    console.log("Promptory content script loaded and executing.");
 
-// --- MutationObserver Logic ---
-let observer;
-
-function extractAndSave(turnElement, config) {
-  console.log('Promptory: extractAndSave function called for turn:', turnElement);
-  
-  const promptText = turnElement.querySelector(config.promptSelector)?.innerText;
-  const responseText = turnElement.querySelector(config.responseSelector)?.innerText;
-
-  if (promptText && responseText) {
-    console.log("Promptory: Detected finished conversation. Sending to backend.");
-    sendConversationToBackend(promptText, responseText, config.source);
-  } else {
-    console.error('Promptory: Could not extract prompt or response text.', { promptText, responseText });
-  }
-}
-
-// --- Site-specific Configurations ---
-const siteConfigs = {
-  'chatgpt.com': {
-    source: 'CHAT_GPT',
-    mainAreaSelector: 'main',
-    turnSelector: "article[data-testid^='conversation-turn-']",
-    finishedStateSelector: 'button[data-testid="copy-turn-action-button"]',
-    promptSelector: 'div[data-message-author-role="user"]',
-    responseSelector: 'div.markdown',
-    getTurnElement: (node) => node.closest("article[data-testid^='conversation-turn-']"),
-  },
-  'gemini.google.com': {
-    source: 'GEMINI',
-    mainAreaSelector: 'main',
-    turnSelector: '.conversation-container',
-    finishedStateSelector: 'thumb-up-button',
-    promptSelector: '.query-text',
-    responseSelector: '.markdown',
-    getTurnElement: (node) => node.closest('.conversation-container'),
-  }
-};
-
-const host = window.location.hostname;
-const config = Object.values(siteConfigs).find(c => host.includes(c.source.toLowerCase().replace('_', '.')));
-
-if (!config) {
-    console.error('Promptory: No configuration found for this site.');
-} else {
-    console.log('Promptory: Using configuration for:', config.source);
-    observer = new MutationObserver((mutationsList, obs) => {
-      console.log('Promptory: MutationObserver detected changes:', mutationsList);
-      for (const mutation of mutationsList) {
-        for (const node of mutation.addedNodes) {
-          if (node.nodeType !== Node.ELEMENT_NODE) continue;
-    
-          const finishedElement = node.querySelector(config.finishedStateSelector) || (node.matches(config.finishedStateSelector) ? node : null);
-          
-          if (finishedElement) {
-            console.log('Promptory: Found finished element:', finishedElement);
-            const turnElement = config.getTurnElement(finishedElement);
-    
-            if (turnElement && turnElement.dataset.promptorySaved !== 'true') {
-              extractAndSave(turnElement, config);
-              turnElement.dataset.promptorySaved = 'true';
-            }
-          }
-        }
-      }
-    });
-    startObserver(config);
-}
-
-
-function sendConversationToBackend(prompt, response, source) {
-  chrome.storage.local.get('access_token', (result) => {
-    const token = result.access_token;
-    console.error('PROMPTORY DEBUG: Retrieved token:', token);
-    if (!token) {
-      console.error('Promptory: No access token found. Please log in to the web app first.');
-      return;
+    // --- UTILITY FUNCTIONS ---
+    let debounceTimeout;
+    function debounce(func, delay) {
+        clearTimeout(debounceTimeout);
+        debounceTimeout = setTimeout(func, delay);
     }
-    const apiUrl = 'http://localhost:8000/api/v1/conversations';
-    fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ 
-        prompt, 
-        response, 
-        source, 
-        conversation_timestamp: new Date().toISOString()
-      }),
-    })
-    .then(res => {
-      if (!res.ok) {
-        console.error(`Promptory: Failed to save conversation. Server responded with: ${res.status}`);
-      } else {
-        console.log('Promptory: Conversation saved successfully.');
-      }
-    })
-    .catch(error => console.error('Promptory: Error sending conversation to backend:', error));
-  });
-}
 
-function startObserver(config) {
-  console.log('Promptory: Attempting to start MutationObserver...');
-  const targetNode = document.querySelector(config.mainAreaSelector);
-  if (targetNode) {
-    observer.observe(targetNode, { childList: true, subtree: true });
-    console.log('Promptory: MutationObserver is now watching for conversations on target:', targetNode);
-  } else {
-    console.log('Promptory: Target node for MutationObserver not found. Retrying...');
-    setTimeout(() => startObserver(config), 2000);
-  }
-}
+    // --- MESSAGING AND DATA HANDLING ---
+    function sendConversationToBackend(prompt, response, source) {
+        console.log('[Promptory] Sending conversation to background script.');
+        chrome.runtime.sendMessage(
+            {
+                type: 'SAVE_CONVERSATION',
+                payload: { prompt, response, source, conversation_timestamp: new Date().toISOString() },
+            },
+            (response) => {
+                if (chrome.runtime.lastError) {
+                    console.error('[Promptory] Error sending message to background:', chrome.runtime.lastError.message);
+                } else if (response && response.status === 'success') {
+                    console.log('[Promptory] Background script confirmed conversation was saved.');
+                } else {
+                    console.error('[Promptory] Background script reported an error.', response);
+                }
+            }
+        );
+    }
+
+    // --- SITE-SPECIFIC SCANNING LOGIC ---
+    function scanForUnsavedTurns_ChatGPT(config) {
+        console.log('[Promptory] Scanning for completed ChatGPT conversations...');
+        const allFinishedElements = document.querySelectorAll(config.finishedStateSelector);
+
+        for (const finishedElement of allFinishedElements) {
+            if (finishedElement.dataset.promptorySaved === 'true') {
+                continue;
+            }
+            
+            console.log('[Promptory] Found a new, unsaved finished element (copy button).', finishedElement);
+            finishedElement.dataset.promptorySaved = 'true';
+
+            // Use the stable 'agent-turn' class to find the parent container
+            const assistantTurnElement = finishedElement.closest('.agent-turn');
+            if (!assistantTurnElement) {
+                console.error('[Promptory] Could not find parent turn element (.agent-turn) for a finished button.');
+                continue;
+            }
+
+            const responseContainer = assistantTurnElement.querySelector('div[data-message-author-role="assistant"]');
+            if (!responseContainer) {
+                console.error('[Promptory] Could not find response container within the assistant turn.');
+                continue;
+            }
+            const responseText = responseContainer.innerText;
+
+            const promptTurnElement = assistantTurnElement.previousElementSibling;
+            if (!promptTurnElement) {
+                console.error('[Promptory] Could not find the previous sibling element for the prompt turn.');
+                continue;
+            }
+
+            const promptContainer = promptTurnElement.querySelector('div[data-message-author-role="user"]');
+            if (!promptContainer) {
+                console.error('[Promptory] Could not find prompt container in the previous turn element.');
+                continue;
+            }
+            const promptText = promptContainer.innerText;
+
+            if (promptText && responseText) {
+                console.log('[Promptory] SUCCESS: Found and extracted a new ChatGPT conversation. Saving.');
+                sendConversationToBackend(promptText, responseText, config.source);
+            } else {
+                console.error('[Promptory] FAILED to extract text from a found ChatGPT conversation.', { promptText, responseText });
+            }
+        }
+    }
+
+    function scanForUnsavedTurns_Gemini(config) {
+        const allTurnElements = document.querySelectorAll(config.turnSelector);
+
+        for (const turnElement of allTurnElements) {
+            if (turnElement.dataset.promptorySaved === 'true') continue;
+
+            const finishedElement = turnElement.querySelector(config.finishedStateSelector);
+            if (finishedElement) {
+                console.log('[Promptory] Found a new, completed Gemini turn. Saving.', turnElement);
+                turnElement.dataset.promptorySaved = 'true';
+                
+                const promptText = turnElement.querySelector(config.promptSelector)?.innerText;
+                const responseText = turnElement.querySelector(config.responseSelector)?.innerText;
+
+                if (promptText && responseText) {
+                    sendConversationToBackend(promptText, responseText, config.source);
+                } else {
+                    console.error('[Promptory] Could not extract Gemini prompt or response text.');
+                }
+            }
+        }
+    }
+    
+    // This function runs once on page load for ChatGPT to prevent saving history.
+    function markExistingTurnsAsSaved_ChatGPT(config) {
+        console.log('[Promptory] Pre-scanning to mark existing conversations...');
+        const allFinishedElements = document.querySelectorAll(config.finishedStateSelector);
+        console.log(`[Promptory] Found ${allFinishedElements.length} existing finished elements to mark as saved.`);
+        for (const finishedElement of allFinishedElements) {
+            finishedElement.dataset.promptorySaved = 'true';
+        }
+        console.log('[Promptory] Pre-scan complete. Only new conversations will be saved.');
+    }
+
+    // --- MAIN EXECUTION ---
+    function main() {
+        const siteConfigs = [
+            {
+                hosts: ['chatgpt.com', 'openai.com'],
+                config: {
+                    source: 'CHAT_GPT',
+                    mainAreaSelector: 'main',
+                    turnSelector: '.agent-turn', // This is the corrected, stable selector for the whole turn.
+                    finishedStateSelector: '[data-testid="copy-turn-action-button"]',
+                    scanFunction: scanForUnsavedTurns_ChatGPT,
+                    preScanFunction: markExistingTurnsAsSaved_ChatGPT,
+                }
+            },
+            {
+                hosts: ['google.com'],
+                config: {
+                    source: 'GEMINI',
+                    mainAreaSelector: 'main',
+                    turnSelector: '.conversation-container',
+                    finishedStateSelector: 'thumb-up-button',
+                    promptSelector: '.query-text',
+                    responseSelector: '.markdown',
+                    scanFunction: scanForUnsavedTurns_Gemini,
+                }
+            }
+        ];
+
+        const host = window.location.hostname;
+        console.log(`[Promptory] Initializing on host: "${host}"`);
+
+        const site = siteConfigs.find(site => site.hosts.some(h => host.includes(h)));
+        const config = site ? site.config : null;
+
+        if (!config) {
+            console.error(`[Promptory] No configuration found for host: "${host}".`);
+            return;
+        }
+
+        console.log('[Promptory] Using configuration for:', config.source);
+        
+        // Run pre-scan after a delay to let the page load, if the site needs it.
+        if (config.preScanFunction) {
+            setTimeout(() => config.preScanFunction(config), 2500); // Wait for initial content to load
+        }
+        
+        const observer = new MutationObserver((mutationsList, obs) => {
+            debounce(() => config.scanFunction(config), 500);
+        });
+
+        function startObserver(config) {
+            console.log('Promptory: Attempting to start MutationObserver...');
+            const targetNode = document.querySelector(config.mainAreaSelector);
+            if (targetNode) {
+                observer.observe(targetNode, { childList: true, subtree: true });
+                console.log('Promptory: MutationObserver is now watching for conversations on target:', targetNode);
+            } else {
+                console.log('Promptory: Target node for MutationObserver not found. Retrying...');
+                setTimeout(() => startObserver(config), 2000);
+            }
+        }
+
+        startObserver(config);
+    }
+
+    main();
+
+})();

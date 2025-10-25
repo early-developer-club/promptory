@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/app/context/AuthContext';
 import ConversationItem from '@/app/ui/conversation-item';
 
+import { useRouter } from 'next/navigation';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+
 interface StatsSummary {
   total_conversations: number;
   by_source: {
@@ -11,37 +14,25 @@ interface StatsSummary {
   };
 }
 
-interface Conversation {
-  id: string;
-  title: string;
-  summary: string;
-  tags: string[];
-  created_at: string;
+interface TagStat {
+  name: string;
+  count: number;
 }
 
-// New component for the conversation list
-function ConversationList({ conversations, onDelete }: { conversations: Conversation[], onDelete: (id: string) => void }) {
-  return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Conversations</h2>
-      {conversations.map(convo => (
-        <ConversationItem 
-          key={convo.id} 
-          {...convo} 
-          onDelete={onDelete} 
-        />
-      ))}
-    </div>
-  );
-}
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
 export default function DashboardPage() {
   const { token } = useAuth();
+  const router = useRouter();
   const [summary, setSummary] = useState<StatsSummary | null>(null);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [tagStats, setTagStats] = useState<TagStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const handleBarClick = (data: TagStat) => {
+    router.push(`/?q=${encodeURIComponent(data.name)}`);
+  };
+  
   const fetchData = useCallback(async () => {
     if (!token) {
       setLoading(false);
@@ -62,11 +53,11 @@ export default function DashboardPage() {
       const summaryData = await summaryRes.json();
       setSummary(summaryData);
 
-      // Fetch conversations
-      const convosRes = await fetch('http://localhost:8000/api/v1/conversations', { headers });
-      if (!convosRes.ok) throw new Error('Failed to fetch conversations');
-      const convosData = await convosRes.json();
-      setConversations(convosData);
+      // Fetch tag statistics
+      const tagsRes = await fetch('http://localhost:8000/api/v1/statistics/tags', { headers });
+      if (!tagsRes.ok) throw new Error('Failed to fetch tag stats');
+      const tagsData = await tagsRes.json();
+      setTagStats(tagsData);
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -79,28 +70,7 @@ export default function DashboardPage() {
     fetchData();
   }, [fetchData]);
 
-  const handleDelete = async (id: string) => {
-    if (!token) return;
-
-    if (window.confirm('Are you sure you want to delete this conversation?')) {
-      try {
-        const response = await fetch(`http://localhost:8000/api/v1/conversations/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to delete conversation.');
-        }
-
-        setConversations(prev => prev.filter(c => c.id !== id));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
-      }
-    }
-  };
+  const sourceData = summary ? Object.entries(summary.by_source).map(([name, value]) => ({ name, value })) : [];
 
   if (loading && !summary) { // Show initial loading state only
     return <div className="text-center p-8">Loading dashboard...</div>;
@@ -115,18 +85,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="p-8 bg-background min-h-screen">
+    <div className="p-12 bg-background min-h-screen">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-12">
-          <div className="relative">
-            <input 
-              type="text" 
-              placeholder="Search conversations..." 
-              className="w-full px-6 py-4 rounded-full bg-surface border border-border focus:outline-none focus:ring-2 focus:ring-primary text-lg"
-            />
-          </div>
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
           {/* Stat Card: Total Conversations */}
           <div className="p-6 rounded-lg bg-surface border border-border">
@@ -135,16 +95,48 @@ export default function DashboardPage() {
           </div>
 
           {/* Stat Card: Conversations by Source */}
-          <div className="p-6 rounded-lg bg-surface border border-border">
+          <div className="p-6 rounded-lg bg-surface border border-border md:col-span-2">
             <h2 className="text-lg font-semibold text-text-secondary mb-2">By Source</h2>
-            <div className="text-3xl font-bold text-text-primary">
-              <p>ChatGPT: {summary?.by_source?.CHAT_GPT ?? 0}</p>
-              <p>Gemini: {summary?.by_source?.GEMINI ?? 0}</p>
-            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={sourceData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  nameKey="name"
+                  label={(entry) => `${entry.name}: ${entry.value}`}
+                >
+                  {sourceData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-        <ConversationList conversations={conversations} onDelete={handleDelete} />
+        {/* Tag Frequency Chart */}
+        <div className="p-6 rounded-lg bg-surface border border-border">
+          <h2 className="text-lg font-semibold text-text-secondary mb-4">Top Tags</h2>
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart
+              data={tagStats}
+              layout="vertical"
+              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" />
+              <YAxis dataKey="name" type="category" width={150} interval={0} tick={{ fontSize: 14 }} />
+              <Tooltip />
+              <Bar dataKey="count" fill="#8884d8" onClick={handleBarClick} style={{ cursor: 'pointer' }} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );

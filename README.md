@@ -18,80 +18,63 @@
 
 프롬프토리를 통해, 스쳐 지나가는 아이디어를 붙잡아 성장의 발판으로 만드세요.
 
-- **VIBECODING 소요 시간:** 약 6시간
+- **VIBECODING 소요 시간:** 약 12시간
 - **기술 스택 (Tech Stack):**
   - **Backend:**
-    - Python
-    - FastAPI: Modern, fast web framework for building APIs.
-    - SQLAlchemy: SQL toolkit and Object-Relational Mapper (ORM).
-    - Pydantic: Data validation and settings management.
-    - `google-auth-oauthlib`: For Google OAuth2 authentication flow.
-    - `python-jose`: For JWT creation and validation.
+    - Python, FastAPI, SQLAlchemy, OAuth2
+    - `konlpy`, `nltk`: 지능형 키워드 추출
   - **Frontend:**
-    - TypeScript
-    - React
-    - Next.js: The React framework for production.
-    - Tailwind CSS: A utility-first CSS framework for rapid UI development.
-  - **Database:**
-    - SQLite: For lightweight, local database storage.
-  - **Chrome Extension:**
-    - JavaScript (ES6+)
-    - Chrome Extension Manifest V3
+    - Next.js, React, TypeScript
+    - Tailwind CSS
+    - `shadcn/ui`: UI 컴포넌트 시스템
+    - `recharts`: 데이터 시각화
+  - **Database:** SQLite
+  - **Extension:** Chrome Extension (JavaScript)
 
 ---
 
-## 🚀 프로젝트 개발 계획
+## 🚀 프로젝트 주요 기능
 
-- **Week 1 & 2: Core Foundation, UI, and Intelligence (완료)**
-  - [x] 프로젝트 구조 설정 및 기본 골격 구현
-  - [x] 데이터베이스 모델링 및 연동 (SQLAlchemy)
-  - [x] 사용자 인증(OAuth) 기능 구현
-  - [x] 프론트엔드(Next.js) 프로젝트 초기 설정
-  - [x] 대화 목록 및 상세 뷰 UI 개발
-  - [x] Chrome 확장 프로그램: 대화 내용 감지 로직 구현 (ChatGPT, Gemini)
-  - [x] 통계 대시보드 UI 개발
-  - [x] 대화 삭제 기능 구현
-  - [x] 전체 UI "미니멀 & 클린" 테마로 재디자인
-  - [x] 전체 기능 디버깅 및 안정화
-
-- **Week 3: 추가 개발 계획 (Next Step)**
-  - [ ] 프론트엔드 로고 크기 적용 문제 해결
-  - [ ] 검색 기능 구현
-  - [ ] 로그인/로그아웃 버튼 디자인 개선
-  - [ ] 사이드바 네비게이션 UI 구현
-  - [ ] 대시보드 시각화 기능 강화
+- **코어 백엔드 및 인증:**
+  -   FastAPI 기반 프로젝트 구조 설정 및 SQLAlchemy 연동
+  -   Google OAuth2를 통한 안전한 사용자 인증 기능
+- **대화 수집 및 관리:**
+  -   **Chrome 확장 프로그램**을 통한 Gemini, ChatGPT 대화 내용 자동 수집
+  -   **새로운 대화만 저장:** ChatGPT에서 기존 대화는 제외하고, 새로 생성되는 대화만 저장하는 기능
+  -   대화 내용 **키워드 검색** 및 **날짜 필터링** 기능
+  -   대화 삭제 기능
+- **지능형 태그 추출 및 관리:**
+  -   `KoNLPy` (형태소 분석) 및 `nltk` (품사 태깅)를 이용한 한/영 혼용 키워드 추출
+  -   질문(Prompt)의 키워드에 가중치를 부여하여 정확도 높은 태그 자동 생성
+  -   **불용어(Stopwords) 관리:** 불필요한 단어를 태그에서 제외할 수 있도록 백엔드에 설정 기능 추가
+- **대시보드 및 시각화:**
+  -   전체 대화 수, AI 소스별 대화 수 시각화 (파이 차트)
+  -   **태그 빈도 분석:** 가장 많이 사용된 상위 10개 태그 시각화 (막대 차트)
+  -   **태그 기반 필터링:** 대시보드의 태그 클릭 시, 해당 태그를 포함한 대화 목록으로 바로 이동
+- **UI/UX 개선:**
+  -   `shadcn/ui` 기반의 모던 UI 시스템 도입
+  -   **날짜 선택(DatePicker) 개선:** 대화가 있는 날짜만 활성화하고, UI 여백을 조정하여 사용성 증진
+  -   반응형 레이아웃 (사이드바, 헤더 등)
 
 ---
 
-## 💻 개발 진행 상황
+## 💻 최근 개발 진행 상황
 
-### ✅ 완료된 작업
-
-- **프로젝트 구조 생성 및 기본 설정**
-- **백엔드 초기 설정 (FastAPI) 및 데이터베이스 연동 (SQLAlchemy)**
-- **사용자 인증 리팩토링 (헤더 기반 인증)**
-  - 기존 쿠키 기반 인증 방식의 문제를 해결하기 위해, `Authorization: Bearer <토큰>` 헤더를 사용하는 표준 방식으로 리팩토링했습니다.
-  - 백엔드의 `get_current_user` 의존성을 수정하고, 프론트엔드에서는 `AuthContext`를 구현하여 토큰을 관리합니다.
-- **Chrome 확장 프로그램 기능 구현 및 고도화**
-  - `background.js`를 도입하여, 웹페이지-확장 프로그램 간 메시지 통신 아키텍처를 구현하고 안정성을 높였습니다.
-  - `content.js`의 대화 추출 로직을 대폭 개선하여 ChatGPT와 Gemini를 모두 지원하도록 구현했습니다.
-  - `debounce`와 중복 전송 방지 로직을 통해 대화가 여러 번 저장되는 문제를 해결했습니다.
-- **프론트엔드 UI/UX 개발 및 개선 (Next.js)**
-  - 대화 목록 및 상세 뷰, 대시보드 등 핵심 UI를 개발했습니다.
-  - **대화 삭제 기능:** 개별 대화 및 대시보드 목록에서 대화를 삭제하는 기능을 구현했습니다.
-  - **UI 재디자인:** "미니멀 & 클린" 테마를 적용하여 전체적인 UI를 트렌디하게 개선했습니다.
-- **전체 기능 디버깅 및 안정화**
-  - Gemini 대화 수집 오류, CORS 정책 오류, `422`, `500` 서버 오류, `Invalid Date` 등 MVP 구현 과정에서 발생한 모든 버그를 해결했습니다.
-
-### 📝 앞으로의 작업
-
-- **프론트엔드**
-  - 특정 조건에서 발생하는 로고 폰트 크기 미적용 문제를 해결합니다.
-  - 헤더의 로그인/로그아웃 버튼 디자인을 개선합니다.
-  - 사이드바를 구현하여 앱의 전체적인 레이아웃을 개선합니다.
-  - 대시보드에 차트 라이브러리 등을 활용하여 시각화 요소를 추가합니다.
-- **기능**
-  - 대화 내용을 검색하는 기능을 구현합니다.
+- **대시보드 기능 고도화:**
+  -   백엔드에 태그 통계 API (`/api/v1/statistics/tags`)를 추가하여, 사용자의 태그 사용 빈도를 집계하는 기능을 구현했습니다.
+  -   프론트엔드 대시보드에 `recharts`를 활용하여 **상위 10개 태그를 보여주는 막대 차트**를 추가했습니다.
+  -   사용자가 차트의 막대를 클릭하면, 해당 태그가 포함된 대화 목록을 바로 볼 수 있도록 **태그 필터링 기능**을 연동했습니다.
+- **UI/UX 개선:**
+  -   **날짜 필터(DatePicker)**의 사용성을 개선했습니다. API 통신을 통해 실제 대화가 존재하는 날짜만 활성화하고, 나머지 날짜는 비활성화하여 사용자가 무의미한 선택을 하지 않도록 변경했습니다.
+  -   전체적인 시각적 편안함을 위해 대시보드와 캘린더의 여백(padding)을 조정했습니다.
+- **지능형 태그 추출 기능 개선:**
+  -   키워드 추출의 정확도를 높이기 위해, 백엔드(`crud.py`)에 **한국어 및 영어 불용어(Stopwords) 목록**을 추가하고 이를 관리할 수 있도록 리팩토링했습니다.
+- **Chrome 확장 프로그램 안정화:**
+  -   Gemini, ChatGPT 등 각 사이트의 동적인 웹 구조 변화에 대응하기 위해 `content.js`의 대화 감지 로직을 전면 재설계했습니다.
+  -   특히, ChatGPT에서 기존 대화는 제외하고 **새로 생성되는 대화만 저장**하도록 기능을 개선하여 사용 편의성을 높였습니다.
+  -   Gemini 사이트의 엄격한 콘텐츠 보안 정책(CSP)을 우회하기 위해, `background.js`를 통해 백엔드와 통신하도록 구조를 변경하여 데이터 전송 안정성을 확보했습니다.
+- **버그 수정 및 안정화:**
+  -   개발 과정에서 발생한 다수의 백엔드 오류(`AttributeError`, `NameError` 등)와 프론트엔드 렌더링 문제를 해결하여 전체적인 안정성을 높였습니다.
 
 ---
 
@@ -99,38 +82,38 @@
 
 ### 백엔드 서버
 
-1. `promptory-jinyoung/backend` 디렉토리로 이동합니다.
-2. `.env.example` 파일을 참고하여 `.env` 파일을 생성하고, 필요한 값들을 채워넣습니다.
-3. 가상환경을 생성하고 활성화합니다.
-   ```bash
-   python -m venv venv
-   .\venv\Scripts\activate # Windows
-   ```
-4. 의존성을 설치합니다.
-   ```bash
-   pip install -r requirements.txt
-   ```
-5. FastAPI 서버를 실행합니다.
-   ```bash
-   uvicorn main:app --reload
-   ```
+1.  `promptory-jinyoung/backend` 디렉토리로 이동합니다.
+2.  `.env.example` 파일을 참고하여 `.env` 파일을 생성하고, 필요한 값들을 채워넣습니다.
+3.  가상환경을 생성하고 활성화합니다.
+    ```bash
+    python -m venv venv
+    .\venv\Scripts\activate # Windows
+    ```
+4.  의존성을 설치합니다.
+    ```bash
+    pip install -r requirements.txt
+    ```
+5.  FastAPI 서버를 실행합니다.
+    ```bash
+    uvicorn main:app --reload
+    ```
 
 ### 프론트엔드 서버
 
-1. `promptory-jinyoung/frontend` 디렉토리로 이동합니다.
-2. 의존성을 설치합니다.
-   ```bash
-   npm install
-   ```
-3. Next.js 개발 서버를 실행합니다.
-   ```bash
-   npm run dev
-   ```
-4. 브라우저에서 `http://localhost:3000`으로 접속합니다.
+1.  `promptory-jinyoung/frontend` 디렉토리로 이동합니다.
+2.  의존성을 설치합니다.
+    ```bash
+    npm install
+    ```
+3.  Next.js 개발 서버를 실행합니다.
+    ```bash
+    npm run dev
+    ```
+4.  브라우저에서 `http://localhost:3000`으로 접속합니다.
 
 ### Chrome 확장 프로그램
 
-1. Chrome 브라우저에서 `chrome://extensions` 페이지로 이동합니다.
-2. 오른쪽 상단의 '개발자 모드'를 활성화합니다.
-3. '압축 해제된 확장 프로그램을 로드합니다' 버튼을 클릭하고 `promptory-jinyoung/chrome-extension` 폴더를 선택합니다.
-4. (코드 수정 시) 확장 프로그램 카드에 있는 새로고침 아이콘을 클릭하여 변경사항을 적용합니다.
+1.  Chrome 브라우저에서 `chrome://extensions` 페이지로 이동합니다.
+2.  오른쪽 상단의 '개발자 모드'를 활성화합니다.
+3.  '압축 해제된 확장 프로그램을 로드합니다' 버튼을 클릭하고 `promptory-jinyoung/chrome-extension` 폴더를 선택합니다.
+4.  (코드 수정 시) 확장 프로그램 카드에 있는 새로고침 아이콘을 클릭하여 변경사항을 적용합니다.

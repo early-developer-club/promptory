@@ -1,8 +1,13 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import ConversationItem from '@/app/ui/conversation-item';
 import { useAuth } from '@/app/context/AuthContext';
+import { Input } from '@/components/ui/input';
+
+import { DatePicker } from '@/app/ui/date-picker';
+import { format } from 'date-fns';
 
 interface Conversation {
   id: string;
@@ -14,11 +19,47 @@ interface Conversation {
 
 export default function Home() {
   const { token } = useAuth();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [allConversations, setAllConversations] = useState<Conversation[]>([]);
-  const [filteredConversations, setFilteredConversations] = useState<Conversation[]>([]);
+  const searchParams = useSearchParams();
+  const initialSearch = searchParams.get('q') || '';
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialSearch);
+  const [date, setDate] = useState<Date | undefined>();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeDates, setActiveDates] = useState<Date[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300); // 300ms delay
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
+  
+  useEffect(() => {
+    if (!token) return;
+
+    async function fetchAllConversationDates() {
+      try {
+        const headers = { 'Authorization': `Bearer ${token}` };
+        const response = await fetch(`http://localhost:8000/api/v1/conversations`, { headers });
+        if (!response.ok) {
+          throw new Error('Failed to fetch conversation dates');
+        }
+        const data: Conversation[] = await response.json();
+        const dates = data.map(c => new Date(c.created_at));
+        setActiveDates(dates);
+      } catch (err) {
+        // Not critical, so just log it
+        console.error(err);
+      }
+    }
+
+    fetchAllConversationDates();
+  }, [token]);
 
   useEffect(() => {
     if (!token) {
@@ -28,19 +69,30 @@ export default function Home() {
 
     async function fetchConversations() {
       setLoading(true);
+      setError(null);
       try {
         const headers = {
           'Authorization': `Bearer ${token}`,
         };
-        const response = await fetch('http://localhost:8000/api/v1/conversations', { headers });
+        
+        const params = new URLSearchParams();
+        if (debouncedSearchTerm) {
+          params.append('q', debouncedSearchTerm);
+        }
+        if (date) {
+          params.append('date', format(date, 'yyyy-MM-dd'));
+        }
+
+        const url = `http://localhost:8000/api/v1/conversations?${params.toString()}`;
+
+        const response = await fetch(url, { headers });
 
         if (!response.ok) {
           throw new Error('Failed to fetch conversations');
         }
 
         const data: Conversation[] = await response.json();
-        setAllConversations(data);
-        setFilteredConversations(data);
+        setConversations(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
@@ -49,20 +101,7 @@ export default function Home() {
     }
 
     fetchConversations();
-  }, [token]);
-
-  useEffect(() => {
-    const lowercasedTerm = searchTerm.toLowerCase();
-    const filtered = allConversations.filter(convo => {
-      const tagsMatch = convo.tags.some(tag => tag.name.toLowerCase().includes(lowercasedTerm));
-      return (
-        convo.prompt.toLowerCase().includes(lowercasedTerm) ||
-        (convo.summary && convo.summary.toLowerCase().includes(lowercasedTerm)) ||
-        tagsMatch
-      );
-    });
-    setFilteredConversations(filtered);
-  }, [searchTerm, allConversations]);
+  }, [token, debouncedSearchTerm, date]);
 
   const handleDelete = async (id: string) => {
     if (!token) return;
@@ -80,7 +119,7 @@ export default function Home() {
           throw new Error('Failed to delete conversation.');
         }
 
-        setAllConversations(prev => prev.filter(c => c.id !== id));
+        setConversations(prev => prev.filter(c => c.id !== id));
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       }
@@ -101,24 +140,24 @@ export default function Home() {
 
   return (
     <div>
-      <div className="mb-4">
-        <input
+      <div className="flex space-x-2 mb-4">
+        <Input
           type="text"
           placeholder="Search conversations..."
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          className="flex-grow"
         />
+        <DatePicker date={date} setDate={setDate} activeDates={activeDates} />
       </div>
       <h2 className="text-2xl font-bold mb-4">Conversation List</h2>
       <div className="space-y-4">
-        {filteredConversations.length > 0 ? (
-          filteredConversations.map(convo => (
+        {conversations.length > 0 ? (
+          conversations.map(convo => (
             <ConversationItem
               key={convo.id}
               id={convo.id}
               title={convo.prompt} // Using prompt as title
-              summary={convo.summary ?? 'No summary available.'}
               tags={convo.tags.map(t => t.name)}
               created_at={convo.created_at}
               onDelete={handleDelete}

@@ -28,7 +28,6 @@ class ConversationCreate(ConversationBase):
 class Conversation(ConversationBase):
     id: int
     owner_id: int
-    summary: Optional[str] = None
     created_at: datetime.datetime
     tags: List[Tag] = []
 

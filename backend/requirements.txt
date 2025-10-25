@@ -10,3 +10,15 @@ python-dotenv
 python-multipart
 google-auth-oauthlib
 requests
+
+# For Keyword Extraction
+nltk
+joblib
+regex
+tqdm
+
+# For Korean NLP
+konlpy
+JPype1
+numpy
+lxml

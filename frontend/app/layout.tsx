@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/app/context/AuthContext";
 import Header from "@/app/ui/header";
+import Sidebar from "@/app/ui/sidebar";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,11 +19,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-gray-100 dark:bg-gray-900`}>
+      <body className={`${inter.className} bg-background text-text-primary`}>
         <AuthProvider>
           <Header />
-          <div className="max-w-5xl mx-auto">
-            <main className="p-4 sm:p-6 md:p-8">
+          <div className="flex h-screen">
+            <Sidebar />
+            <main className="flex-grow p-4 sm:p-6 md:p-8 overflow-y-auto">
               {children}
             </main>
           </div>

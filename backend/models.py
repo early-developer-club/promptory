@@ -26,7 +26,6 @@ class Conversation(Base):
     source = Column(String, index=True)
     prompt = Column(Text, nullable=False)
     response = Column(Text, nullable=False)
-    summary = Column(Text, nullable=True)
     conversation_timestamp = Column(DateTime, default=datetime.datetime.utcnow)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     owner_id = Column(Integer, ForeignKey('users.id'))

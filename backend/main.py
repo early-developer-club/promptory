@@ -9,8 +9,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List
-from jose import JWTError, jwt
+from typing import List, Optional
 
 # Import modules
 import models
@@ -19,6 +18,7 @@ import database
 import auth
 import crud
 import requests
+from jose import JWTError, jwt
 
 # Create all database tables on startup
 models.Base.metadata.create_all(bind=database.engine)
@@ -131,11 +131,14 @@ async def read_users_me(current_user: models.User = Depends(get_current_user)):
 
 @app.get("/api/v1/conversations", response_model=List[schemas.Conversation])
 def read_conversations(
+    q: Optional[str] = None,
+    date: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """Retrieve all conversations for the current user."""
-    return db.query(models.Conversation).filter(models.Conversation.owner_id == current_user.id).order_by(models.Conversation.conversation_timestamp.desc()).all()
+    """Retrieve conversations for the current user, with optional search and date filters."""
+    return crud.get_conversations(db=db, user_id=current_user.id, query=q, date=date)
+
 
 @app.get("/api/v1/conversations/{conversation_id}", response_model=schemas.Conversation)
 def read_conversation(
@@ -193,6 +196,15 @@ def get_statistics_summary(
         "by_source": by_source
     }
 
+@app.get("/api/v1/statistics/tags")
+def get_tag_statistics(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Get tag frequency for the current user."""
+    tags = crud.get_tag_frequency(db=db, user_id=current_user.id)
+    return tags
+
 
 @app.post("/api/v1/conversations", response_model=schemas.Conversation, status_code=status.HTTP_201_CREATED)
 def create_conversation(
@@ -211,10 +223,11 @@ def create_conversation(
     db.add(db_conversation)
     db.commit()
     db.refresh(db_conversation)
-    
-    print(f"Conversation {db_conversation.id} from user {current_user.email} saved to DB.")
 
-    # TODO: [Async Job] Trigger the summarization and auto-tagging job (JOB-001).
-    print(f"TODO: Trigger async job JOB-001 for conversationId: {db_conversation.id}")
+    # Extract keywords and create tags
+    crud.extract_and_add_tags(db, db_conversation)
+
+    # Refresh again to load the tags
+    db.refresh(db_conversation)
 
     return db_conversation

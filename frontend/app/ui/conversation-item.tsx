@@ -1,15 +1,18 @@
 import Link from 'next/link';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { X } from 'lucide-react';
 
 interface ConversationItemProps {
   id: string;
   title: string;
-  summary: string;
   tags: string[];
   created_at: string;
   onDelete: (id: string) => void;
 }
 
-export default function ConversationItem({ id, title, summary, tags, created_at, onDelete }: ConversationItemProps) {
+export default function ConversationItem({ id, title, tags, created_at, onDelete }: ConversationItemProps) {
   const handleDelete = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -17,27 +20,25 @@ export default function ConversationItem({ id, title, summary, tags, created_at,
   };
 
   return (
-    <div className="relative bg-surface border border-border rounded-lg shadow-sm transition-shadow duration-200 hover:shadow-md">
-      <Link href={`/conversations/${id}`} className="block p-6">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="font-semibold text-lg text-text-primary truncate pr-24">{title}</h3>
-          <p className="text-sm text-text-secondary flex-shrink-0">{new Date(created_at + 'Z').toLocaleDateString()}</p>
-        </div>
-        <p className="text-sm text-text-secondary mt-2 truncate">{summary}</p>
-        <div className="flex flex-wrap gap-2 mt-4">
+    <Card className="transition-shadow duration-200 hover:shadow-md">
+      <Link href={`/conversations/${id}`} className="block">
+        <CardHeader>
+          <div className="flex justify-between items-start">
+            <CardTitle className="truncate pr-8">{title}</CardTitle>
+            <Button variant="ghost" size="icon" onClick={handleDelete} className="-my-2 -mx-2">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">{new Date(created_at + 'Z').toLocaleDateString()}</p>
+        </CardContent>
+        <CardFooter className="flex flex-wrap gap-2">
           {tags.map(tag => (
-            <span key={tag} className="bg-background text-text-secondary text-xs font-medium px-3 py-1 rounded-full border border-border">
-              {tag}
-            </span>
+            <Badge key={tag} variant="secondary">{tag}</Badge>
           ))}
-        </div>
+        </CardFooter>
       </Link>
-      <button 
-        onClick={handleDelete} 
-        className="absolute top-6 right-6 text-red-500 hover:text-red-700 font-bold py-1 px-2 rounded-full transition-colors duration-200"
-      >
-        Delete
-      </button>
-    </div>
+    </Card>
   );
 }
