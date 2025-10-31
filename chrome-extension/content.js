@@ -33,48 +33,53 @@
     // --- SITE-SPECIFIC SCANNING LOGIC ---
     function scanForUnsavedTurns_ChatGPT(config) {
         console.log('[Promptory] Scanning for completed ChatGPT conversations...');
-        const allFinishedElements = document.querySelectorAll(config.finishedStateSelector);
+        const allAssistantTurns = document.querySelectorAll(config.turnSelector + '[data-turn="assistant"]');
 
-        for (const finishedElement of allFinishedElements) {
-            if (finishedElement.dataset.promptorySaved === 'true') {
+        for (const assistantTurnElement of allAssistantTurns) {
+            // Check if this turn is already processed
+            if (assistantTurnElement.dataset.promptorySaved === 'true') {
                 continue;
             }
+
+            // Check if the turn is finished by looking for the copy button within this turn
+            const finishedElement = assistantTurnElement.querySelector(config.finishedStateSelector);
             
-            console.log('[Promptory] Found a new, unsaved finished element (copy button).', finishedElement);
-            finishedElement.dataset.promptorySaved = 'true';
+            if (finishedElement) {
+                console.log('[Promptory] Found a new, completed ChatGPT turn.', assistantTurnElement);
+                assistantTurnElement.dataset.promptorySaved = 'true'; // Mark the entire turn as saved
 
-            // Use the stable 'agent-turn' class to find the parent container
-            const assistantTurnElement = finishedElement.closest('.agent-turn');
-            if (!assistantTurnElement) {
-                console.error('[Promptory] Could not find parent turn element (.agent-turn) for a finished button.');
-                continue;
-            }
+                const responseContainer = assistantTurnElement.querySelector('div[data-message-author-role="assistant"]');
+                if (!responseContainer) continue;
+                
+                // Find the corresponding prompt by looking for the previous user turn article
+                let userTurnArticle = null;
+                let currentElement = assistantTurnElement.previousElementSibling;
+                while (currentElement) {
+                    if (currentElement.matches('article[data-turn="user"]')) {
+                        userTurnArticle = currentElement;
+                        break;
+                    }
+                    currentElement = currentElement.previousElementSibling;
+                }
 
-            const responseContainer = assistantTurnElement.querySelector('div[data-message-author-role="assistant"]');
-            if (!responseContainer) {
-                console.error('[Promptory] Could not find response container within the assistant turn.');
-                continue;
-            }
-            const responseText = responseContainer.innerText;
+                if (userTurnArticle) {
+                    const promptContainer = userTurnArticle.querySelector('div[data-message-author-role="user"]');
+                    if (promptContainer) {
+                        const promptText = promptContainer.innerText;
+                        const responseText = responseContainer.innerText;
 
-            const promptTurnElement = assistantTurnElement.previousElementSibling;
-            if (!promptTurnElement) {
-                console.error('[Promptory] Could not find the previous sibling element for the prompt turn.');
-                continue;
-            }
-
-            const promptContainer = promptTurnElement.querySelector('div[data-message-author-role="user"]');
-            if (!promptContainer) {
-                console.error('[Promptory] Could not find prompt container in the previous turn element.');
-                continue;
-            }
-            const promptText = promptContainer.innerText;
-
-            if (promptText && responseText) {
-                console.log('[Promptory] SUCCESS: Found and extracted a new ChatGPT conversation. Saving.');
-                sendConversationToBackend(promptText, responseText, config.source);
-            } else {
-                console.error('[Promptory] FAILED to extract text from a found ChatGPT conversation.', { promptText, responseText });
+                        if (promptText && responseText) {
+                            console.log('[Promptory] SUCCESS: Extracted prompt and response. Saving.');
+                            sendConversationToBackend(promptText, responseText, config.source);
+                        } else {
+                            console.error('[Promptory] FAILED to extract text from a found conversation.', { promptText, responseText });
+                        }
+                    } else {
+                        console.error('[Promptory] Could not find prompt container within the user turn article.');
+                    }
+                } else {
+                    console.error('[Promptory] Could not find a corresponding user turn article for the response.');
+                }
             }
         }
     }
@@ -104,13 +109,18 @@
     
     // This function runs once on page load for ChatGPT to prevent saving history.
     function markExistingTurnsAsSaved_ChatGPT(config) {
-        console.log('[Promptory] Pre-scanning to mark existing conversations...');
-        const allFinishedElements = document.querySelectorAll(config.finishedStateSelector);
-        console.log(`[Promptory] Found ${allFinishedElements.length} existing finished elements to mark as saved.`);
-        for (const finishedElement of allFinishedElements) {
-            finishedElement.dataset.promptorySaved = 'true';
+        console.log('[Promptory] Pre-scanning to mark existing conversations as saved...');
+        const allTurnElements = document.querySelectorAll(config.turnSelector + '[data-turn="assistant"]');
+        
+        let markedCount = 0;
+        for (const turnElement of allTurnElements) {
+            const finishedElement = turnElement.querySelector(config.finishedStateSelector);
+            if (finishedElement) {
+                turnElement.dataset.promptorySaved = 'true';
+                markedCount++;
+            }
         }
-        console.log('[Promptory] Pre-scan complete. Only new conversations will be saved.');
+        console.log(`[Promptory] Pre-scan complete. Marked ${markedCount} existing assistant messages as saved.`);
     }
 
     // --- MAIN EXECUTION ---
@@ -121,8 +131,8 @@
                 config: {
                     source: 'CHAT_GPT',
                     mainAreaSelector: 'main',
-                    turnSelector: '.agent-turn', // This is the corrected, stable selector for the whole turn.
-                    finishedStateSelector: '[data-testid="copy-turn-action-button"]',
+                    turnSelector: 'article', // The article element now represents a full turn
+                    finishedStateSelector: 'button[data-testid="copy-turn-action-button"]',
                     scanFunction: scanForUnsavedTurns_ChatGPT,
                     preScanFunction: markExistingTurnsAsSaved_ChatGPT,
                 }
