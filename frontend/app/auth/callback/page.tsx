@@ -20,7 +20,7 @@ export default function AuthCallbackPage() {
         // 2. Send the token to the Chrome extension
         const extensionId = 'bmbdphohngnoggmpliocccppcfndlamm'; // NOTE: This is specific to your local setup
         if ((window as any).chrome && (window as any).chrome.runtime) {
-          chrome.runtime.sendMessage(
+          (window as any).chrome.runtime.sendMessage(
             extensionId,
             { type: 'SET_TOKEN', token: accessToken },
             (response) => {
