@@ -79,7 +79,7 @@ def read_root():
 
 # --- Auth Endpoints ---
 
-@app.get("/auth/google")
+@app.get("/api/v1/auth/google")
 def auth_google():
     """Generate a redirect to Google's OAuth 2.0 login page."""
     authorization_url, state = auth.flow.authorization_url(
@@ -91,7 +91,7 @@ def auth_google():
     response.set_cookie(key="state", value=state, httponly=True)
     return response
 
-@app.get("/auth/google/callback")
+@app.get("/api/v1/auth/google/callback")
 def auth_google_callback(request: Request, db: Session = Depends(get_db)):
     """Handle the callback from Google after successful login."""
     # CSRF protection (Temporarily disabled for local development)
@@ -117,7 +117,8 @@ def auth_google_callback(request: Request, db: Session = Depends(get_db)):
     access_token = auth.create_access_token(data={"sub": str(user.id)})
 
     # Redirect to the frontend callback URL with the token in the hash
-    response = RedirectResponse(url=f"http://localhost:3000/auth/callback#access_token={access_token}")
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    response = RedirectResponse(url=f"{frontend_url}/auth/callback#access_token={access_token}")
     return response
 
 # --- User Endpoints ---
