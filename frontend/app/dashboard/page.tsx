@@ -29,8 +29,10 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const handleBarClick = (data: TagStat) => {
-    router.push(`/?q=${encodeURIComponent(data.name)}`);
+  const handleBarClick = (data: any) => {
+    if (data && data.payload && data.payload.name) {
+      router.push(`/?q=${encodeURIComponent(data.payload.name)}`);
+    }
   };
   
   const fetchData = useCallback(async () => {
@@ -47,14 +49,16 @@ export default function DashboardPage() {
         'Authorization': `Bearer ${token}`,
       };
 
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+
       // Fetch summary statistics
-      const summaryRes = await fetch('http://localhost:8000/api/v1/statistics/summary', { headers });
+      const summaryRes = await fetch(`${backendUrl}/api/v1/statistics/summary`, { headers });
       if (!summaryRes.ok) throw new Error('Failed to fetch summary stats');
       const summaryData = await summaryRes.json();
       setSummary(summaryData);
 
       // Fetch tag statistics
-      const tagsRes = await fetch('http://localhost:8000/api/v1/statistics/tags', { headers });
+      const tagsRes = await fetch(`${backendUrl}/api/v1/statistics/tags`, { headers });
       if (!tagsRes.ok) throw new Error('Failed to fetch tag stats');
       const tagsData = await tagsRes.json();
       setTagStats(tagsData);
