@@ -25,13 +25,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (newToken) {
       localStorage.setItem('access_token', newToken);
       // Also save to chrome.storage for the extension
-      if (window.chrome && chrome.runtime && chrome.runtime.sendMessage) {
-        chrome.runtime.sendMessage(
+      if ((window as any).chrome && (window as any).chrome.runtime && (window as any).chrome.runtime.sendMessage) {
+        (window as any).chrome.runtime.sendMessage(
           'bmbdphohngnoggmpliocccppcfndlamm',
           { type: 'SET_TOKEN', token: newToken },
-          (response) => {
-            if (chrome.runtime.lastError) {
-              console.error('Error sending token to extension:', chrome.runtime.lastError.message);
+          (response: any) => {
+            if ((window as any).chrome.runtime.lastError) {
+              console.error('Error sending token to extension:', (window as any).chrome.runtime.lastError.message);
             } else if (response?.status === 'success') {
               console.log('Token successfully sent to extension.');
             } else {
@@ -42,8 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } else {
       localStorage.removeItem('access_token');
-      if (window.chrome && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.remove('access_token');
+      if ((window as any).chrome && (window as any).chrome.storage && (window as any).chrome.storage.local) {
+        (window as any).chrome.storage.local.remove('access_token');
       }
     }
   };
