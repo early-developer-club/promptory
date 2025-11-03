@@ -20,9 +20,9 @@ ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", str(60 * 24 * 7)))
 
 # 배포 도메인 기반 혹은 명시적 REDIRECT URI
-BASE_URL = os.getenv("BASE_URL")  # 예: https://your-service.onrender.com
+BASE_URL = os.getenv("BASE_URL") 
 REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI") or (
-    f"{BASE_URL}/auth/google/callback" if BASE_URL else "http://127.0.0.1:8000/auth/google/callback"
+    f"{BASE_URL}/api/v1/auth/google/callback" if BASE_URL else "http://127.0.0.1:8000/api/v1/auth/google/callback"
 )
 
 missing = []
