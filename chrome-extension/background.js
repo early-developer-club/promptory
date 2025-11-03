@@ -28,7 +28,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return;
       }
 
-      const apiUrl = 'http://localhost:8000/api/v1/conversations';
+      const apiUrl = 'https://promptory-backend-w2ya.onrender.com/api/v1/conversations';
       fetch(apiUrl, {
         method: 'POST',
         headers: {
