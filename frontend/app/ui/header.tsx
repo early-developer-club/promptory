@@ -26,7 +26,7 @@ export default function Header() {
                 </>
               ) : (
                 <Button asChild>
-                  <a href={`${process.env.NEXT_PUBLIC_API_URL}/auth/google`}>
+                  <a href={`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/google`}>
                     Login with Google
                   </a>
                 </Button>
