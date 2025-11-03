@@ -23,8 +23,8 @@ export default function AuthCallbackPage() {
           (window as any).chrome.runtime.sendMessage(
             extensionId,
             { type: 'SET_TOKEN', token: accessToken },
-            (response) => {
-              if (chrome.runtime.lastError) {
+            (response: any) => {
+              if ((window as any).chrome.runtime.lastError) {
                 console.error('Error sending token to extension:', chrome.runtime.lastError.message);
               } else {
                 console.log('Successfully sent token to extension:', response?.status);
