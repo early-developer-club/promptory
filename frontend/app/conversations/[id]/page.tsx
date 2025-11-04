@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext'; 
-import { getJSONAuth, delAuth } from '@/lib/api';
+import { useAuth } from '@/app/context/AuthContext'; 
+import { getJSONAuth, delAuth } from '@/app/lib/api';
 
 // Define the structure of a conversation
 interface Conversation {
