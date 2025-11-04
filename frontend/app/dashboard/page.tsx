@@ -1,10 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/app/context/AuthContext';
-import ConversationItem from '@/app/ui/conversation-item';
-import { fetchJson } from '@/app/lib/api'; // ← 공통 유틸만 사용
-
+import { fetchJson } from '@/app/lib/api';
 import { useRouter } from 'next/navigation';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
@@ -49,18 +47,12 @@ export default function DashboardPage() {
     try {
       const headers = { Authorization: `Bearer ${token}` };
 
-      // Summary
-      const summaryData = await fetchJson<StatsSummary>(
-        '/api/v1/statistics/summary',
-        { headers }
-      );
-      setSummary(summaryData);
+      const [summaryData, tagsData] = await Promise.all([
+        fetchJson<StatsSummary>('/api/v1/statistics/summary', { headers }),
+        fetchJson<TagStat[]>('/api/v1/statistics/tags', { headers }),
+      ]);
 
-      // Tags
-      const tagsData = await fetchJson<TagStat[]>(
-        '/api/v1/statistics/tags',
-        { headers }
-      );
+      setSummary(summaryData);
       setTagStats(tagsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -73,9 +65,10 @@ export default function DashboardPage() {
     fetchData();
   }, [fetchData]);
 
-  const sourceData = summary
-    ? Object.entries(summary.by_source).map(([name, value]) => ({ name, value }))
-    : [];
+  const sourceData = useMemo(
+    () => summary ? Object.entries(summary.by_source).map(([name, value]) => ({ name, value })) : [],
+    [summary]
+  );
 
   if (loading && !summary) {
     return <div className="text-center p-8">Loading dashboard...</div>;
@@ -93,7 +86,6 @@ export default function DashboardPage() {
     <div className="p-12 bg-background min-h-screen">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-          {/* Stat Card: Total Conversations */}
           <div className="p-6 rounded-lg bg-surface border border-border">
             <h2 className="text-lg font-semibold text-text-secondary mb-2">Total Conversations</h2>
             <p className="text-5xl font-bold text-text-primary">
@@ -101,7 +93,6 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* Stat Card: Conversations by Source */}
           <div className="p-6 rounded-lg bg-surface border border-border md:col-span-2">
             <h2 className="text-lg font-semibold text-text-secondary mb-2">By Source</h2>
             <ResponsiveContainer width="100%" height={300}>
@@ -127,7 +118,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Tag Frequency Chart */}
         <div className="p-6 rounded-lg bg-surface border border-border">
           <h2 className="text-lg font-semibold text-text-secondary mb-4">Top Tags</h2>
           <ResponsiveContainer width="100%" height={400}>
