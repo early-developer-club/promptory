@@ -15,7 +15,7 @@ function getRawBase(): string {
 
 /** 안전한 베이스 URL. 없으면 빈 문자열(상대경로 모드) */
 function safeBase(): string {
-  const raw = getRawBase().trim();
+  const raw = getRawBase().trim(); 
   return raw ? raw.replace(/\/+$/, '') : '';
 }
 
