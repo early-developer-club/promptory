@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/context/AuthContext'; 
+import { getJSONAuth, delAuth } from '@/lib/api';
 
 // Define the structure of a conversation
 interface Conversation {
@@ -19,7 +20,10 @@ export default function ConversationPage() {
   const { token } = useAuth();
   const params = useParams();
   const router = useRouter();
-  const id = params.id;
+
+  // id: string | string[] 가능 → 안전하게 string으로 정규화
+  const rawId = (params as Record<string, string | string[]>).id;
+  const id = Array.isArray(rawId) ? rawId[0] : rawId;
 
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,25 +34,10 @@ export default function ConversationPage() {
       setLoading(false);
       return;
     }
-
     setLoading(true);
     setError(null);
-
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/conversations/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error('Conversation not found.');
-        }
-        throw new Error('Failed to fetch conversation.');
-      }
-
-      const data = await response.json();
+      const data = await getJSONAuth(`api/v1/conversations/${id}`, token);
       setConversation(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -63,38 +52,19 @@ export default function ConversationPage() {
 
   const handleDelete = async () => {
     if (!token || !id) return;
+    if (!window.confirm('Are you sure you want to delete this conversation?')) return;
 
-    if (window.confirm('Are you sure you want to delete this conversation?')) {
-      try {
-        const response = await fetch(`http://localhost:8000/api/v1/conversations/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to delete conversation.');
-        }
-
-        router.push('/dashboard');
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
-      }
+    try {
+      await delAuth(`api/v1/conversations/${id}`, token);
+      router.push('/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
     }
   };
 
-  if (loading) {
-    return <div className="text-center p-8">Loading conversation...</div>;
-  }
-
-  if (error) {
-    return <div className="text-center p-8 text-red-500">Error: {error}</div>;
-  }
-
-  if (!conversation) {
-    return <div className="text-center p-8">No conversation data found.</div>;
-  }
+  if (loading) return <div className="text-center p-8">Loading conversation...</div>;
+  if (error) return <div className="text-center p-8 text-red-500">Error: {error}</div>;
+  if (!conversation) return <div className="text-center p-8">No conversation data found.</div>;
 
   return (
     <div className="bg-background min-h-screen p-8">
@@ -104,11 +74,12 @@ export default function ConversationPage() {
             <div>
               <h1 className="text-3xl font-bold text-text-primary">Conversation Details</h1>
               <p className="text-sm text-text-secondary mt-2">
-                Source: <span className="font-semibold">{conversation.source}</span> | Recorded on: {new Date(conversation.conversation_timestamp + 'Z').toLocaleString()}
+                Source: <span className="font-semibold">{conversation.source}</span> | Recorded on:{' '}
+                {new Date(conversation.conversation_timestamp + 'Z').toLocaleString()}
               </p>
             </div>
-            <button 
-              onClick={handleDelete} 
+            <button
+              onClick={handleDelete}
               className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition-colors duration-200"
             >
               Delete
@@ -158,5 +129,3 @@ export default function ConversationPage() {
     </div>
   );
 }
-
-

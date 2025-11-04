@@ -1,13 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Promptory",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Automatically save your conversations with Generative AI.",
-  "permissions": [
-    "storage"
-  ],
+  "permissions": ["storage"],
   "host_permissions": [
     "*://chat.openai.com/*",
+    "*://chatgpt.com/*",
     "*://gemini.google.com/app/*"
   ],
   "content_scripts": [
@@ -20,15 +19,14 @@
       "js": ["content.js"]
     }
   ],
-  "action": {
-    "default_popup": "popup.html"
-  },
-  "background": {
-    "service_worker": "background.js"
-  },
+  "action": { "default_popup": "popup.html" },
+  "background": { "service_worker": "background.js" },
+
   "externally_connectable": {
     "matches": [
-      "http://localhost:3000/*"
+      "http://localhost:3000/*",                    // Dev
+      "https://promptory-frontend.vercel.app/*",    // Prod (Vercel)
+      "https://*.promptory.app/*"                   // 선택: 커스텀 도메인 와일드카드
     ]
   }
 }
