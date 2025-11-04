@@ -2,10 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/app/context/AuthContext'; 
-import { getJSONAuth, delAuth } from '@/app/lib/api';
+import { useAuth } from '@/app/context/AuthContext';
+import { fetchJson, apiUrl } from '@/app/lib/api';
 
-// Define the structure of a conversation
 interface Conversation {
   id: number;
   source: string;
@@ -37,7 +36,8 @@ export default function ConversationPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getJSONAuth(`api/v1/conversations/${id}`, token);
+      const headers = { Authorization: `Bearer ${token}` };
+      const data = await fetchJson<Conversation>(`/api/v1/conversations/${id}`, { headers });
       setConversation(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -55,7 +55,11 @@ export default function ConversationPage() {
     if (!window.confirm('Are you sure you want to delete this conversation?')) return;
 
     try {
-      await delAuth(`api/v1/conversations/${id}`, token);
+      const res = await fetch(apiUrl(`/api/v1/conversations/${id}`), {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to delete conversation.');
       router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -74,7 +78,7 @@ export default function ConversationPage() {
             <div>
               <h1 className="text-3xl font-bold text-text-primary">Conversation Details</h1>
               <p className="text-sm text-text-secondary mt-2">
-                Source: <span className="font-semibold">{conversation.source}</span> | Recorded on:{' '}
+                Source: <span className="font-semibold">{conversation.source}</span> | Recorded on{' '}
                 {new Date(conversation.conversation_timestamp + 'Z').toLocaleString()}
               </p>
             </div>
@@ -114,8 +118,11 @@ export default function ConversationPage() {
             <h3 className="text-2xl font-semibold text-text-primary mb-4">Tags</h3>
             <div className="flex flex-wrap gap-4">
               {conversation.tags.length > 0 ? (
-                conversation.tags.map(tag => (
-                  <span key={tag.name} className="bg-gray-200 text-text-secondary text-sm font-medium px-4 py-2 rounded-full border border-border">
+                conversation.tags.map((tag) => (
+                  <span
+                    key={tag.name}
+                    className="bg-gray-200 text-text-secondary text-sm font-medium px-4 py-2 rounded-full border border-border"
+                  >
                     {tag.name}
                   </span>
                 ))
