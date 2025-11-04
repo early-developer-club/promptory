@@ -3,15 +3,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/app/context/AuthContext';
 import ConversationItem from '@/app/ui/conversation-item';
+import { fetchJson } from '@/app/lib/api'; // ← 공통 유틸만 사용
 
 import { useRouter } from 'next/navigation';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import {
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid
+} from 'recharts';
 
 interface StatsSummary {
   total_conversations: number;
-  by_source: {
-    [key: string]: number;
-  };
+  by_source: Record<string, number>;
 }
 
 interface TagStat {
@@ -30,11 +32,11 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   const handleBarClick = (data: any) => {
-    if (data && data.payload && data.payload.name) {
+    if (data?.payload?.name) {
       router.push(`/?q=${encodeURIComponent(data.payload.name)}`);
     }
   };
-  
+
   const fetchData = useCallback(async () => {
     if (!token) {
       setLoading(false);
@@ -45,24 +47,21 @@ export default function DashboardPage() {
     setError(null);
 
     try {
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-      };
+      const headers = { Authorization: `Bearer ${token}` };
 
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-
-      // Fetch summary statistics
-      const summaryRes = await fetch(`${backendUrl}/api/v1/statistics/summary`, { headers });
-      if (!summaryRes.ok) throw new Error('Failed to fetch summary stats');
-      const summaryData = await summaryRes.json();
+      // Summary
+      const summaryData = await fetchJson<StatsSummary>(
+        '/api/v1/statistics/summary',
+        { headers }
+      );
       setSummary(summaryData);
 
-      // Fetch tag statistics
-      const tagsRes = await fetch(`${backendUrl}/api/v1/statistics/tags`, { headers });
-      if (!tagsRes.ok) throw new Error('Failed to fetch tag stats');
-      const tagsData = await tagsRes.json();
+      // Tags
+      const tagsData = await fetchJson<TagStat[]>(
+        '/api/v1/statistics/tags',
+        { headers }
+      );
       setTagStats(tagsData);
-
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
@@ -74,9 +73,11 @@ export default function DashboardPage() {
     fetchData();
   }, [fetchData]);
 
-  const sourceData = summary ? Object.entries(summary.by_source).map(([name, value]) => ({ name, value })) : [];
+  const sourceData = summary
+    ? Object.entries(summary.by_source).map(([name, value]) => ({ name, value }))
+    : [];
 
-  if (loading && !summary) { // Show initial loading state only
+  if (loading && !summary) {
     return <div className="text-center p-8">Loading dashboard...</div>;
   }
 
@@ -95,7 +96,9 @@ export default function DashboardPage() {
           {/* Stat Card: Total Conversations */}
           <div className="p-6 rounded-lg bg-surface border border-border">
             <h2 className="text-lg font-semibold text-text-secondary mb-2">Total Conversations</h2>
-            <p className="text-5xl font-bold text-text-primary">{summary?.total_conversations ?? 0}</p>
+            <p className="text-5xl font-bold text-text-primary">
+              {summary?.total_conversations ?? 0}
+            </p>
           </div>
 
           {/* Stat Card: Conversations by Source */}
@@ -137,7 +140,7 @@ export default function DashboardPage() {
               <XAxis type="number" />
               <YAxis dataKey="name" type="category" width={150} interval={0} tick={{ fontSize: 14 }} />
               <Tooltip />
-              <Bar dataKey="count" fill="#8884d8" onClick={handleBarClick} style={{ cursor: 'pointer' }} />
+              <Bar dataKey="count" onClick={handleBarClick} style={{ cursor: 'pointer' }} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -145,4 +148,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
