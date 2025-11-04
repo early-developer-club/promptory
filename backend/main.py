@@ -30,9 +30,12 @@ app = FastAPI(
 )
 
 # Add CORS middleware
+frontend_url = os.getenv("FRONTEND_URL")
+print(f"Attempting to allow origin: {frontend_url}")  # For debugging
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_URL")],  # Allows only the specified frontend origin
+    allow_origins=[frontend_url],  # Allows only the specified frontend origin
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
