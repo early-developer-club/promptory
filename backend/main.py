@@ -31,11 +31,18 @@ app = FastAPI(
 
 # Add CORS middleware
 frontend_url = os.getenv("FRONTEND_URL")
-print(f"Attempting to allow origin: {frontend_url}")  # For debugging
+extension_origin = f"chrome-extension://{os.getenv('CHROME_EXTENSION_ID')}"
+print(f"Allowing origins: {frontend_url}, {extension_origin}")  # For debugging
+
+origins = []
+if frontend_url:
+    origins.append(frontend_url)
+if extension_origin:
+    origins.append(extension_origin)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[frontend_url],  # Allows only the specified frontend origin
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
