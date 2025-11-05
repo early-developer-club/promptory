@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 
 interface AuthContextType {
   token: string | null;
+  isLoading: boolean;
   setToken: (token: string | null) => void;
   logout: () => void;
 }
@@ -18,23 +19,23 @@ function hasChromeExt() {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setTokenState] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // 브라우저 환경에서만 localStorage 접근
-    if (typeof window === 'undefined') return;
-    const storedToken = localStorage.getItem('access_token');
-    if (storedToken) setTokenState(storedToken);
-
-    // (선택) 확장프로그램 저장소에도 토큰이 있을 수 있으므로 읽어오기 (있을 때만)
-    if (!storedToken && hasChromeExt()) {
-      try {
-        const w = window as any;
-        w.chrome.storage?.local?.get(['access_token'], (res: any) => {
-          if (res?.access_token) setTokenState(res.access_token);
-        });
-      } catch {
-        /* no-op */
+    if (typeof window === 'undefined') {
+      setIsLoading(false);
+      return;
+    }
+    try {
+      const storedToken = localStorage.getItem('access_token');
+      if (storedToken) {
+        setTokenState(storedToken);
       }
+    } catch (e) {
+      console.error("Failed to read token from localStorage", e);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -88,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ token, setToken, logout }}>
+    <AuthContext.Provider value={{ token, isLoading, setToken, logout }}>
       {children}
     </AuthContext.Provider>
   );

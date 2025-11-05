@@ -22,7 +22,7 @@ interface TagStat {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
 export default function DashboardPage() {
-  const { token } = useAuth();
+  const { token, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const [summary, setSummary] = useState<StatsSummary | null>(null);
   const [tagStats, setTagStats] = useState<TagStat[]>([]);
@@ -36,6 +36,7 @@ export default function DashboardPage() {
   };
 
   const fetchData = useCallback(async () => {
+    if (isAuthLoading) return; // Auth context is not ready yet.
     if (!token) {
       setLoading(false);
       return;
@@ -59,7 +60,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, isAuthLoading]);
 
   useEffect(() => {
     fetchData();
@@ -70,7 +71,7 @@ export default function DashboardPage() {
     [summary]
   );
 
-  if (loading && !summary) {
+  if (loading || isAuthLoading) {
     return <div className="text-center p-8">Loading dashboard...</div>;
   }
 

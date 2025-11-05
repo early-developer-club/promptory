@@ -18,7 +18,7 @@ interface Conversation {
 }
 
 export default function ConversationSearch() {
-  const { token } = useAuth();
+  const { token, isLoading: isAuthLoading } = useAuth();
   const searchParams = useSearchParams();
   const initialSearch = searchParams.get('q') || '';
   const [searchTerm, setSearchTerm] = useState(initialSearch);
@@ -37,7 +37,7 @@ export default function ConversationSearch() {
 
   // fetch all conversation dates (for DatePicker highlights)
   useEffect(() => {
-    if (!token) return;
+    if (isAuthLoading || !token) return;
 
     async function fetchAllConversationDates() {
       try {
@@ -51,10 +51,11 @@ export default function ConversationSearch() {
     }
 
     fetchAllConversationDates();
-  }, [token]);
+  }, [token, isAuthLoading]);
 
   // fetch conversations with filters
   useEffect(() => {
+    if (isAuthLoading) return;
     if (!token) {
       setLoading(false);
       return;
@@ -83,7 +84,7 @@ export default function ConversationSearch() {
     }
 
     fetchConversations();
-  }, [token, debouncedSearchTerm, date]);
+  }, [token, debouncedSearchTerm, date, isAuthLoading]);
 
   const handleDelete = async (id: string) => {
     if (!token) return;
@@ -103,7 +104,7 @@ export default function ConversationSearch() {
     }
   };
 
-  if (loading) return <div>Loading conversations...</div>;
+  if (loading || isAuthLoading) return <div>Loading conversations...</div>;
   if (error) return <div className="text-red-500">Error: {error}</div>;
   if (!token) return <div>Please log in to see your conversations.</div>;
 
