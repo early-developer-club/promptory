@@ -64,6 +64,22 @@
 
 ---
 
+## ✅ 오늘 해결된 문제 (2025-11-05)
+
+- **데이터베이스 마이그레이션:**
+  - SQLite에서 PostgreSQL로 데이터베이스를 성공적으로 변경했습니다. Render 배포 환경에서 PostgreSQL이 사용되도록 설정되었습니다.
+- **프론트엔드 인증 오류 (401 Unauthorized) 해결:**
+  - Google OAuth 콜백 시 JWT 토큰이 URL 해시(#)로 전달되어 Next.js SSR 환경에서 토큰이 유실되던 문제를 해결했습니다.
+  - 백엔드(`backend/main.py`)에서 토큰을 URL 쿼리 파라미터(`?access_token=...`)로 전달하도록 수정했습니다.
+  - 프론트엔드(`frontend/app/auth/callback/page.tsx`)에서 토큰을 쿼리 파라미터에서 파싱하도록 수정했습니다.
+  - `AuthContext`에 `isLoading` 상태를 추가하여 인증 상태 로딩 완료 후 API 요청을 보내도록 프론트엔드 로직을 개선했습니다 (`frontend/app/context/AuthContext.tsx`, `frontend/app/dashboard/page.tsx`, `frontend/app/ui/conversation-search.tsx`).
+- **크롬 확장 프로그램 데이터 저장 오류 해결 (Failed to fetch):**
+  - 크롬 확장 프로그램이 백엔드 API를 호출할 때 발생하던 CORS(Cross-Origin Resource Sharing) 정책 위반 문제를 해결했습니다.
+  - 백엔드(`backend/main.py`)의 `CORSMiddleware` 설정에 크롬 확장 프로그램의 출처(`chrome-extension://{CHROME_EXTENSION_ID}`)를 허용 목록에 추가했습니다.
+  - `CHROME_EXTENSION_ID` 환경 변수를 통해 확장 프로그램 ID를 동적으로 설정하도록 개선했습니다.
+
+---
+
 ## 💻 최근 개발 진행 상황
 
 - **대시보드 기능 고도화:**
@@ -101,6 +117,16 @@
 ---
 
 ## 🛠️ 향후 개선 과제 (Troubleshooting & TODO)
+
+### 2025-11-06 작업 예정
+- **UI 개선:**
+  - 대화 목록(`Conversation List`) 및 개별 항목(`Conversation Item`)의 UI를 보다 직관적으로 개선합니다.
+  - 사이드바(`Sidebar`)의 레이아웃과 기능을 검토하고 사용성을 높입니다.
+- **태그 기능 복구:**
+  - PostgreSQL 데이터베이스로 마이그레이션한 후, 대화 저장 시 태그가 정상적으로 추출되고 연결되지 않는 문제를 진단하고 해결합니다.
+  - 백엔드의 `crud.py` 내 `extract_and_add_tags` 함수 로직을 집중적으로 검토합니다.
+
+---
 
 현재 배포 환경에서 대화 내용이 데이터베이스에 저장되지 않는 문제가 있으며, 아래와 같은 사항들을 순차적으로 점검하고 해결해야 합니다.
 
