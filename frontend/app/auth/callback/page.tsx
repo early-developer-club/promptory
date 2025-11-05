@@ -9,9 +9,7 @@ export default function AuthCallbackPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const hash = window.location.hash;
-    if (hash) {
-      const params = new URLSearchParams(hash.substring(1)); // Remove the #
+    const params = new URLSearchParams(window.location.search); // Read from query parameters
       const accessToken = params.get('access_token');
       if (accessToken) {
         // 1. Set the token in the web app's context (and localStorage)

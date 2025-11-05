@@ -121,7 +121,7 @@ def auth_google_callback(request: Request, db: Session = Depends(get_db)):
 
     # Redirect to the frontend callback URL with the token in the hash
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
-    response = RedirectResponse(url=f"{frontend_url}/auth/callback#access_token={access_token}")
+    response = RedirectResponse(url=f"{frontend_url}/auth/callback?access_token={access_token}")
     return response
 
 # --- User Endpoints ---
